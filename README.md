@@ -1,61 +1,63 @@
-# parsec-switch
+# Parsec Switch
 
-Mehrere Parsec-Logins auf einem Mac verwalten und per Befehl zwischen ihnen wechseln – ohne jedes Mal aus- und wieder einzuloggen.
+Manage several Parsec logins on one Mac and switch between them with a single command – no more logging out and back in.
 
-Parsec speichert den Login in `~/.parsec/user.bin`. `parsec-switch` hält pro Profil eine Kopie dieser Datei unter `~/.parsec/profiles/<name>/` und tauscht sie beim Wechsel aus. Parsec wird dabei beendet und neu gestartet.
+Parsec stores its login in `~/.parsec/user.bin`. `parsec-switch` keeps a copy of that file per profile under `~/.parsec/profiles/<name>/` and swaps it in when you switch. Parsec is quit and relaunched in the process.
 
-## Voraussetzungen
+## Requirements
 
-- macOS mit Parsec unter `/Applications/Parsec.app`
-- zsh (Standard-Shell auf macOS)
+- macOS with Parsec installed at `/Applications/Parsec.app`
+- zsh (the default shell on macOS)
 
 ## Installation
 
 ```bash
-git clone https://github.com/Ernst-Film/parsec-switch.git
+git clone https://github.com/Ernst-Film/Parsec-Switch.git
 mkdir -p ~/.local/bin
-ln -s "$PWD/parsec-switch/parsec-switch" ~/.local/bin/parsec-switch
+ln -s "$PWD/Parsec-Switch/parsec-switch" ~/.local/bin/parsec-switch
 ```
 
-`~/.local/bin` muss im `PATH` stehen (z. B. in `~/.zshrc`: `export PATH="$HOME/.local/bin:$PATH"`).
+`~/.local/bin` must be on your `PATH` (e.g. in `~/.zshrc`: `export PATH="$HOME/.local/bin:$PATH"`).
 
-## Einrichten
+## Setup
 
-Jeden Login einmal als Profil speichern:
+Save each login once as a profile:
 
-1. In Parsec mit dem ersten Konto einloggen.
-2. `parsec-switch save arbeit`
-3. `parsec-switch new` – Parsec startet ausgeloggt.
-4. In Parsec mit dem zweiten Konto einloggen.
-5. `parsec-switch save privat`
+1. Log in to Parsec with the first account.
+2. `parsec-switch save work`
+3. `parsec-switch new` – Parsec restarts logged out.
+4. Log in to Parsec with the second account.
+5. `parsec-switch save personal`
 
-`parsec-switch list` zeigt danach beide Profile, das aktive mit `*`.
+`parsec-switch list` now shows both profiles, the active one marked with `*`.
 
-## Benutzung
+## Usage
 
-| Befehl | Wirkung |
+| Command | Effect |
 |---|---|
-| `parsec-switch` | zum nächsten Profil wechseln (bei zwei Profilen: hin und her) |
-| `parsec-switch <name>` | zu einem bestimmten Profil wechseln |
-| `parsec-switch save <name>` | aktuellen Login als Profil speichern und aktiv setzen |
-| `parsec-switch new` | ausloggen für einen frischen Login, danach `save <name>` |
-| `parsec-switch list` | Profile anzeigen |
-| `parsec-switch delete <name>` | Profil löschen |
+| `parsec-switch` | switch to the next profile (with two profiles: toggle) |
+| `parsec-switch <name>` | switch to a specific profile |
+| `parsec-switch save <name>` | save the current login as a profile and mark it active |
+| `parsec-switch new` | log out for a fresh login, then run `save <name>` |
+| `parsec-switch list` | list profiles |
+| `parsec-switch delete <name>` | delete a profile |
 
-Vor jedem Wechsel sichert das Skript den aktuellen Login zurück ins aktive Profil. Erneuert Parsec die Sitzung im Hintergrund, bleibt das Profil damit aktuell.
+Before every switch the script copies the current login back into the active profile, so a session that Parsec refreshed in the background is not lost.
 
-## Dateien
+## Files
 
 ```
-~/.parsec/user.bin                 aktiver Login (von Parsec verwaltet)
-~/.parsec/profiles/<name>/user.bin gespeicherter Login je Profil
-~/.parsec/profiles/.active         Name des aktiven Profils
+~/.parsec/user.bin                  active login (managed by Parsec)
+~/.parsec/profiles/<name>/user.bin  saved login per profile
+~/.parsec/profiles/.active          name of the active profile
 ```
 
-> **Achtung:** `user.bin` enthält die Parsec-Sitzung. Wer die Datei hat, ist mit diesem Konto eingeloggt. Profile nicht weitergeben, nicht in Cloud-Ordner oder Repos legen.
+> **Warning:** `user.bin` contains your Parsec session. Anyone who has the file is logged in as you. Do not share profiles or put them in cloud folders or repositories.
 
-## Wenn es nicht klappt
+## Troubleshooting
 
-- **„Profil existiert nicht“:** Name mit `parsec-switch list` prüfen.
-- **Parsec zeigt nach dem Wechsel den Login-Bildschirm:** Die Sitzung des Profils ist abgelaufen. In Parsec neu einloggen und mit `parsec-switch save <name>` überschreiben.
-- **„Zum Togglen braucht es mindestens 2 Profile“:** Zweites Profil wie unter „Einrichten“ anlegen.
+- **"Profile … does not exist":** check the name with `parsec-switch list`.
+- **Parsec shows the login screen after switching:** the profile's session has expired. Log in again in Parsec and overwrite it with `parsec-switch save <name>`.
+- **"Toggling needs at least 2 profiles":** create a second profile as described under Setup.
+
+The script only touches Parsec's own daemon (`/Applications/Parsec.app/Contents/MacOS/parsecd`), not macOS's unrelated `parsecd` process from CoreParsec.
