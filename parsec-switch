@@ -1,0 +1,132 @@
+#!/bin/zsh
+# parsec-switch — mehrere Parsec-Logins auf einem Rechner verwalten
+#
+# Der Parsec-Login steckt in ~/.parsec/user.bin. Dieses Skript hält pro
+# Profil eine Kopie davon unter ~/.parsec/profiles/<name>/ und tauscht sie
+# bei Bedarf aus (Parsec wird dabei beendet und neu gestartet).
+#
+#   parsec-switch              zum nächsten Profil togglen
+#   parsec-switch <name>       zu Profil wechseln
+#   parsec-switch save <name>  aktuellen Login als Profil speichern
+#   parsec-switch new          ausloggen für frischen Login (danach: save <name>)
+#   parsec-switch list         Profile anzeigen
+#   parsec-switch delete <name>
+
+set -euo pipefail
+
+PARSEC_DIR="$HOME/.parsec"
+PROFILES_DIR="$PARSEC_DIR/profiles"
+ACTIVE_FILE="$PROFILES_DIR/.active"
+USER_BIN="$PARSEC_DIR/user.bin"
+APP="/Applications/Parsec.app"
+
+mkdir -p "$PROFILES_DIR"
+
+active_profile() { [[ -f "$ACTIVE_FILE" ]] && cat "$ACTIVE_FILE" || echo ""; }
+
+quit_parsec() {
+    if pgrep -x parsecd >/dev/null 2>&1; then
+        osascript -e 'quit app "Parsec"' >/dev/null 2>&1 || true
+        for i in {1..10}; do
+            pgrep -x parsecd >/dev/null 2>&1 || break
+            sleep 0.5
+        done
+        pkill -x parsecd 2>/dev/null || true
+        sleep 0.5
+    fi
+}
+
+start_parsec() { open "$APP"; }
+
+# Aktuellen Login ins aktive Profil zurücksichern (falls bekannt)
+sync_back() {
+    local cur; cur=$(active_profile)
+    if [[ -n "$cur" && -f "$USER_BIN" && -d "$PROFILES_DIR/$cur" ]]; then
+        cp "$USER_BIN" "$PROFILES_DIR/$cur/user.bin"
+    fi
+}
+
+cmd="${1:-toggle}"
+
+case "$cmd" in
+    toggle)
+        # Ohne Argument: zum nächsten Profil wechseln (bei 2 Profilen = Toggle)
+        cur=$(active_profile)
+        profiles=("$PROFILES_DIR"/*(N/))
+        names=(${profiles:t})
+        if (( ${#names} < 2 )); then
+            echo "Zum Togglen braucht es mindestens 2 Profile." >&2
+            exec "$0" list
+        fi
+        target=""
+        for (( i = 1; i <= ${#names}; i++ )); do
+            if [[ "${names[i]}" == "$cur" ]]; then
+                target="${names[$(( i % ${#names} + 1 ))]}"
+                break
+            fi
+        done
+        [[ -n "$target" ]] || target="${names[1]}"
+        exec "$0" "$target"
+        ;;
+
+    list)
+        cur=$(active_profile)
+        echo "Profile in $PROFILES_DIR:"
+        found=0
+        for d in "$PROFILES_DIR"/*(N/); do
+            name=${d:t}
+            marker="  "
+            if [[ "$name" == "$cur" ]]; then marker="* "; fi
+            echo "  ${marker}${name}"
+            found=1
+        done
+        if [[ $found -eq 0 ]]; then
+            echo "  (keine — mit 'parsec-switch save <name>' anlegen)"
+        fi
+        ;;
+
+    save)
+        name="${2:?Profilname fehlt: parsec-switch save <name>}"
+        [[ -f "$USER_BIN" ]] || { echo "Kein aktiver Login (~/.parsec/user.bin fehlt) — erst in Parsec einloggen." >&2; exit 1; }
+        mkdir -p "$PROFILES_DIR/$name"
+        cp "$USER_BIN" "$PROFILES_DIR/$name/user.bin"
+        echo "$name" > "$ACTIVE_FILE"
+        echo "Login als Profil '$name' gespeichert (aktiv)."
+        ;;
+
+    new)
+        quit_parsec
+        sync_back
+        rm -f "$USER_BIN"
+        : > "$ACTIVE_FILE"
+        start_parsec
+        echo "Ausgeloggt — jetzt in Parsec neu einloggen, dann: parsec-switch save <name>"
+        ;;
+
+    delete)
+        name="${2:?Profilname fehlt: parsec-switch delete <name>}"
+        [[ -d "$PROFILES_DIR/$name" ]] || { echo "Profil '$name' existiert nicht." >&2; exit 1; }
+        rm -rf "$PROFILES_DIR/$name"
+        if [[ "$(active_profile)" == "$name" ]]; then : > "$ACTIVE_FILE"; fi
+        echo "Profil '$name' gelöscht."
+        ;;
+
+    *)
+        name="$cmd"
+        [[ -f "$PROFILES_DIR/$name/user.bin" ]] || {
+            echo "Profil '$name' existiert nicht. Vorhandene Profile:" >&2
+            "$0" list >&2
+            exit 1
+        }
+        if [[ "$(active_profile)" == "$name" ]]; then
+            echo "Profil '$name' ist bereits aktiv."
+            exit 0
+        fi
+        quit_parsec
+        sync_back
+        cp "$PROFILES_DIR/$name/user.bin" "$USER_BIN"
+        echo "$name" > "$ACTIVE_FILE"
+        start_parsec
+        echo "Gewechselt zu Profil '$name'."
+        ;;
+esac
