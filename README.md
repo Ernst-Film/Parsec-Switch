@@ -61,3 +61,7 @@ Before every switch the script copies the current login back into the active pro
 - **"Toggling needs at least 2 profiles":** create a second profile as described under Setup.
 
 The script only touches Parsec's own daemon (`/Applications/Parsec.app/Contents/MacOS/parsecd`), not macOS's unrelated `parsecd` process from CoreParsec.
+
+## License
+
+[MIT](LICENSE) © 2026 ERNST Film
